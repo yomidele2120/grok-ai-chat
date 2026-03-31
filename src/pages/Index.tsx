@@ -1,274 +1,118 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { Header } from "@/components/Header";
-import { AppSidebar } from "@/components/AppSidebar";
-import { DashboardOverview } from "@/components/DashboardOverview";
-import { ControlBar, type OutputType, type ResearchDepth } from "@/components/ControlBar";
-import { ResearchInput } from "@/components/ResearchInput";
-import { ResearchSkeleton } from "@/components/ResearchSkeleton";
-import { ResearchLoader } from "@/components/ResearchLoader";
-import { ResearchOutput } from "@/components/ResearchOutput";
-import { ModeSwitcher, type ResearchMode } from "@/components/ModeSwitcher";
-import { useResearch } from "@/hooks/useResearch";
-import { useAuth } from "@/hooks/useAuth";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { supabase } from "@/integrations/supabase/client";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Home, FlaskConical, Clock, Bookmark, Settings } from "lucide-react";
-import type { Source } from "@/types/research";
-
-const DEPTH_LABELS: Record<ResearchDepth, string> = {
-  quick: "quick",
-  standard: "standard",
-  deep: "deep",
-  academic: "academic",
-  expert: "expert",
-};
-
-const MODE_TO_RESEARCH_TYPE: Record<ResearchMode, string> = {
-  executive: "executive",
-  research: "general",
-  literature: "literature",
-};
+import { Users, Globe, ShoppingCart, Code, Zap, Shield, ArrowRight, BarChart3, MessageSquare } from "lucide-react";
+import { motion } from "framer-motion";
 
 const Index = () => {
-  const { logs, content, sources, isLoading, isPaused, retryCountdown, error, hasMore, research, continueResearch } = useResearch();
-  const { user, loading: authLoading, signOut } = useAuth();
-  const navigate = useNavigate();
-  const isMobile = useIsMobile();
-
-  const [activeView, setActiveView] = useState<"dashboard" | "research" | "history" | "saved" | "settings">("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
-
-  const [selectedDepth, setSelectedDepth] = useState<ResearchDepth>("standard");
-  const [selectedOutputType, setSelectedOutputType] = useState<OutputType>("structured");
-  const [selectedMode, setSelectedMode] = useState<ResearchMode>("research");
-
-  const [viewedContent, setViewedContent] = useState("");
-  const [viewedSources, setViewedSources] = useState<Source[]>([]);
-  const [isViewingHistory, setIsViewingHistory] = useState(false);
-
-  const lastQueryRef = useRef("");
-  const hasSavedRef = useRef(false);
-  const [lastResearchId, setLastResearchId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/login");
-    }
-  }, [user, authLoading, navigate]);
-
-  useEffect(() => {
-    if (!isLoading && content && user && !isViewingHistory && !hasMore && !hasSavedRef.current) {
-      hasSavedRef.current = true;
-      const saveToHistory = async () => {
-        const { data } = await supabase.from("research_history").insert({
-          user_id: user.id,
-          query: lastQueryRef.current || "Research",
-          content,
-          sources: sources as any,
-        }).select("id").single();
-        if (data) setLastResearchId(data.id);
-        setHistoryRefreshKey((k) => k + 1);
-      };
-      saveToHistory();
-    }
-  }, [isLoading, content, user, hasMore, isViewingHistory, sources]);
-
-  const handleHistorySelect = useCallback((item: { query: string; content: string; sources: Source[] }) => {
-    setViewedContent(item.content);
-    setViewedSources(item.sources);
-    setIsViewingHistory(true);
-    setActiveView("research");
-    setSidebarOpen(false);
-  }, []);
-
-  const handleResearch = useCallback((query: string) => {
-    setIsViewingHistory(false);
-    setViewedContent("");
-    setViewedSources([]);
-    lastQueryRef.current = query;
-    hasSavedRef.current = false;
-    setLastResearchId(null);
-    research(query, DEPTH_LABELS[selectedDepth], MODE_TO_RESEARCH_TYPE[selectedMode]);
-  }, [research, selectedDepth, selectedMode]);
-
-  const handleRefineSection = useCallback((sectionBody: string, action: string) => {
-    const actionMap: Record<string, string> = {
-      simplify: "Simplify the following section, making it shorter and clearer:",
-      expand: "Expand the following section with more detail and evidence:",
-      decide: "Rewrite the following section to be decision-focused, with clear actionable recommendations:",
-    };
-    const prompt = `${actionMap[action] || "Refine:"}\n\n${sectionBody}`;
-    setIsViewingHistory(false);
-    setViewedContent("");
-    setViewedSources([]);
-    lastQueryRef.current = prompt;
-    hasSavedRef.current = false;
-    setLastResearchId(null);
-    research(prompt, DEPTH_LABELS[selectedDepth], MODE_TO_RESEARCH_TYPE[selectedMode]);
-  }, [research, selectedDepth, selectedMode]);
-
-  const handleStartResearch = useCallback(() => {
-    setActiveView("research");
-    setIsViewingHistory(false);
-    setViewedContent("");
-    setViewedSources([]);
-  }, []);
-
-  const handleModeChange = useCallback((mode: ResearchMode) => {
-    setSelectedMode(mode);
-    // If content exists and not viewing history, regenerate with new mode
-    if (lastQueryRef.current && content && !isViewingHistory && !isLoading) {
-      hasSavedRef.current = false;
-      research(lastQueryRef.current, DEPTH_LABELS[selectedDepth], MODE_TO_RESEARCH_TYPE[mode]);
-    }
-  }, [content, isViewingHistory, isLoading, research, selectedDepth]);
-
-  const displayContent = isViewingHistory ? viewedContent : content;
-  const displaySources = isViewingHistory ? viewedSources : sources;
-
-  if (authLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  const mobileNavItems = [
-    { id: "dashboard" as const, icon: Home, label: "Home" },
-    { id: "research" as const, icon: FlaskConical, label: "Research" },
-    { id: "history" as const, icon: Clock, label: "History" },
-    { id: "saved" as const, icon: Bookmark, label: "Saved" },
-    { id: "settings" as const, icon: Settings, label: "Settings" },
-  ];
-
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header userEmail={user?.email} onSignOut={signOut} />
-
-      <div className="flex flex-1 min-h-0">
-        {/* Mobile sidebar toggle */}
-        {isMobile && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="fixed bottom-16 left-4 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
-          >
-            {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
-        )}
-
-        {/* Sidebar - desktop always, mobile overlay */}
-        {(!isMobile || sidebarOpen) && (
-          <>
-            {isMobile && (
-              <div className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-            )}
-            <div className={isMobile ? "fixed left-0 top-14 bottom-0 z-40" : ""}>
-              <AppSidebar
-                activeView={activeView}
-                onViewChange={(v) => {
-                  setActiveView(v);
-                  setSidebarOpen(false);
-                }}
-                logs={logs}
-                isLoading={isLoading}
-                historyRefreshKey={historyRefreshKey}
-                onHistorySelect={handleHistorySelect}
-                collapsed={false}
-              />
+    <div className="min-h-screen bg-background">
+      {/* Nav */}
+      <nav className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="container flex h-14 items-center justify-between px-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
+              <Users className="h-4 w-4 text-primary-foreground" />
             </div>
-          </>
-        )}
+            <span className="font-semibold text-sm sm:text-base">AI Sales Rep</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" asChild><Link to="/login">Sign in</Link></Button>
+            <Button size="sm" asChild><Link to="/signup">Get Started <ArrowRight className="ml-1 h-3 w-3" /></Link></Button>
+          </div>
+        </div>
+      </nav>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
-          {activeView === "dashboard" && (
-            <DashboardOverview onStartResearch={handleStartResearch} />
-          )}
+      {/* Hero */}
+      <section className="border-b">
+        <div className="container py-16 sm:py-24 md:py-32 max-w-4xl text-center px-4">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted px-3 py-1 text-xs text-muted-foreground mb-6 sm:mb-8">
+              <Zap className="h-3 w-3 text-primary" />
+              AI-powered digital sales workforce
+            </div>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-5 leading-[1.1]">
+              Deploy an AI Sales Rep for
+              <span className="text-primary"> every business</span>
+            </h1>
+            <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8 leading-relaxed px-2">
+              Not a chatbot — a trained digital salesperson that discovers products, closes deals, and processes payments 24/7 inside the conversation.
+            </p>
+            <div className="flex gap-3 justify-center flex-wrap">
+              <Button size="lg" asChild><Link to="/signup">Start Free <ArrowRight className="ml-1 h-4 w-4" /></Link></Button>
+              <Button size="lg" variant="outline" asChild><Link to="/login">Sign in</Link></Button>
+            </div>
+          </motion.div>
+        </div>
+      </section>
 
-          {activeView === "research" && (
-            <div className="max-w-[800px] mx-auto px-4 py-6 md:py-10">
-              <ResearchInput onSubmit={handleResearch} isLoading={isLoading} />
+      {/* Features */}
+      <section className="border-b">
+        <div className="container py-16 sm:py-20 px-4">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3">How it works</h2>
+            <p className="text-muted-foreground text-sm max-w-md mx-auto">Three steps to deploy your AI Sales Rep</p>
+          </div>
+          <div className="grid gap-4 sm:gap-px md:grid-cols-3 max-w-4xl mx-auto sm:border sm:rounded-lg sm:overflow-hidden sm:bg-border">
+            {[
+              { icon: Globe, title: "Connect your business", desc: "Add your website URL. We crawl and extract your products, prices, and services automatically." },
+              { icon: MessageSquare, title: "AI learns to sell", desc: "Your Sales Rep builds a product catalog and learns how to recommend, upsell, and close deals." },
+              { icon: ShoppingCart, title: "Customers buy in chat", desc: "Deploy on your website or landing page. Customers discover, order, and pay — all inside the conversation." },
+            ].map((feature, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                viewport={{ once: true }}
+                className="bg-background p-6 sm:p-8 border sm:border-0 rounded-lg sm:rounded-none"
+              >
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-muted">
+                  <feature.icon className="h-5 w-5 text-foreground" />
+                </div>
+                <h3 className="font-semibold mb-2">{feature.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-              {/* Mode Switcher */}
-              <ModeSwitcher activeMode={selectedMode} onModeChange={handleModeChange} />
-
-              <ControlBar
-                depth={selectedDepth}
-                outputType={selectedOutputType}
-                onDepthChange={setSelectedDepth}
-                onOutputTypeChange={setSelectedOutputType}
-              />
-
-              <div className="mt-8">
-                {isLoading && !displayContent && <ResearchLoader isLoading={isLoading} />}
-                {!isLoading && !displayContent && <ResearchSkeleton />}
-                {displayContent && (
-                  <ResearchOutput
-                    content={displayContent}
-                    sources={displaySources}
-                    isLoading={isLoading}
-                    isPaused={isPaused}
-                    retryCountdown={retryCountdown}
-                    error={isViewingHistory ? null : error}
-                    hasMore={isViewingHistory ? false : hasMore}
-                    onContinue={continueResearch}
-                    mode={selectedMode}
-                    onRefineSection={handleRefineSection}
-                    researchId={lastResearchId}
-                  />
-                )}
+      {/* Trust */}
+      <section className="border-b">
+        <div className="container py-10 sm:py-12 px-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
+            {[
+              { icon: Shield, text: "Enterprise-grade security" },
+              { icon: Zap, text: "Sub-2s response times" },
+              { icon: BarChart3, text: "Sales analytics" },
+              { icon: Users, text: "Multi-tenant isolation" },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <item.icon className="h-4 w-4 text-primary" />
+                <span className="text-xs sm:text-sm">{item.text}</span>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
+        </div>
+      </section>
 
-          {activeView === "history" && (
-            <div className="max-w-[800px] mx-auto px-4 py-6 md:py-10">
-              <h2 className="text-xl font-bold text-foreground mb-6 font-display">Research History</h2>
-              <p className="text-sm text-muted-foreground font-body">Select a research entry from the sidebar to view it.</p>
-            </div>
-          )}
+      {/* CTA */}
+      <section className="border-b">
+        <div className="container py-16 sm:py-20 text-center px-4">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4">Ready to deploy your AI Sales Rep?</h2>
+          <p className="text-muted-foreground text-sm mb-8 max-w-md mx-auto">
+            Turn website visitors into paying customers. No coding required.
+          </p>
+          <Button size="lg" asChild><Link to="/signup">Create free account <ArrowRight className="ml-1 h-4 w-4" /></Link></Button>
+        </div>
+      </section>
 
-          {activeView === "saved" && (
-            <div className="max-w-[800px] mx-auto px-4 py-6 md:py-10">
-              <h2 className="text-xl font-bold text-foreground mb-6 font-display">Saved Reports</h2>
-              <p className="text-sm text-muted-foreground font-body">Saved reports will appear here.</p>
-            </div>
-          )}
-
-          {activeView === "settings" && (
-            <div className="max-w-[800px] mx-auto px-4 py-6 md:py-10">
-              <h2 className="text-xl font-bold text-foreground mb-6 font-display">Settings</h2>
-              <p className="text-sm text-muted-foreground font-body">Account settings coming soon.</p>
-            </div>
-          )}
-        </main>
-      </div>
-
-      {/* Mobile bottom nav with Lucide icons */}
-      {isMobile && (
-        <nav className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border flex items-center justify-around py-2 px-2">
-          {mobileNavItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveView(item.id)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors ${
-                activeView === item.id
-                  ? "text-primary font-semibold"
-                  : "text-muted-foreground"
-              }`}
-            >
-              <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-      )}
+      {/* Footer */}
+      <footer className="py-6 px-4">
+        <div className="container text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()} AI Sales Rep Platform. All rights reserved.
+        </div>
+      </footer>
     </div>
   );
 };

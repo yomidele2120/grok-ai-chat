@@ -14,99 +14,268 @@ export type Database = {
   }
   public: {
     Tables: {
-      api_keys: {
+      chat_messages: {
         Row: {
+          content: string
+          conversation_id: string
           created_at: string
           id: string
-          is_active: boolean
-          key_hash: string
-          key_prefix: string
-          last_used_at: string | null
-          name: string
-          user_id: string
+          role: string
         }
         Insert: {
+          content: string
+          conversation_id: string
           created_at?: string
           id?: string
-          is_active?: boolean
-          key_hash: string
-          key_prefix: string
-          last_used_at?: string | null
-          name?: string
-          user_id: string
+          role: string
         }
         Update: {
+          content?: string
+          conversation_id?: string
           created_at?: string
           id?: string
-          is_active?: boolean
-          key_hash?: string
-          key_prefix?: string
-          last_used_at?: string | null
-          name?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      bookmarks: {
-        Row: {
-          created_at: string
-          id: string
-          research_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          research_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          research_id?: string
-          user_id?: string
+          role?: string
         }
         Relationships: [
           {
-            foreignKeyName: "bookmarks_research_id_fkey"
-            columns: ["research_id"]
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
             isOneToOne: false
-            referencedRelation: "research_history"
+            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]
       }
-      folders: {
+      conversations: {
         Row: {
           created_at: string
           id: string
-          name: string
-          parent_id: string | null
+          last_active_at: string | null
+          site_id: string
           updated_at: string
-          user_id: string
+          visitor_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          name: string
-          parent_id?: string | null
+          last_active_at?: string | null
+          site_id: string
           updated_at?: string
-          user_id: string
+          visitor_id?: string
         }
         Update: {
           created_at?: string
           id?: string
-          name?: string
-          parent_id?: string | null
+          last_active_at?: string | null
+          site_id?: string
           updated_at?: string
-          user_id?: string
+          visitor_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "folders_parent_id_fkey"
-            columns: ["parent_id"]
+            foreignKeyName: "conversations_site_id_fkey"
+            columns: ["site_id"]
             isOneToOne: false
-            referencedRelation: "folders"
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_chunks: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string
+          id: string
+          search_vector: unknown
+          site_id: string
+          source_url: string | null
+          title: string | null
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          search_vector?: unknown
+          site_id: string
+          source_url?: string | null
+          title?: string | null
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          search_vector?: unknown
+          site_id?: string
+          source_url?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_chunks_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          customer_address: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          payment_reference: string | null
+          payment_status: string
+          product_id: string | null
+          quantity: number
+          site_id: string
+          total_amount: number
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          payment_reference?: string | null
+          payment_status?: string
+          product_id?: string | null
+          quantity?: number
+          site_id: string
+          total_amount: number
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          payment_reference?: string | null
+          payment_status?: string
+          product_id?: string | null
+          quantity?: number
+          site_id?: string
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_configs: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          provider: string
+          public_key: string
+          secret_key: string
+          site_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          provider: string
+          public_key: string
+          secret_key: string
+          site_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          provider?: string
+          public_key?: string
+          secret_key?: string
+          site_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_configs_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price: number | null
+          site_id: string
+          stock: number | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price?: number | null
+          site_id: string
+          stock?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number | null
+          site_id?: string
+          stock?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
             referencedColumns: ["id"]
           },
         ]
@@ -116,168 +285,79 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          email: string | null
           id: string
           updated_at: string
+          user_id: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
-          id: string
+          email?: string | null
+          id?: string
           updated_at?: string
+          user_id: string
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           id?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      research_folders: {
-        Row: {
-          folder_id: string
-          research_id: string
-        }
-        Insert: {
-          folder_id: string
-          research_id: string
-        }
-        Update: {
-          folder_id?: string
-          research_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "research_folders_folder_id_fkey"
-            columns: ["folder_id"]
-            isOneToOne: false
-            referencedRelation: "folders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "research_folders_research_id_fkey"
-            columns: ["research_id"]
-            isOneToOne: false
-            referencedRelation: "research_history"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      research_history: {
-        Row: {
-          content: string
-          created_at: string
-          id: string
-          query: string
-          sources: Json
-          user_id: string
-        }
-        Insert: {
-          content?: string
-          created_at?: string
-          id?: string
-          query: string
-          sources?: Json
-          user_id: string
-        }
-        Update: {
-          content?: string
-          created_at?: string
-          id?: string
-          query?: string
-          sources?: Json
           user_id?: string
         }
         Relationships: []
       }
-      research_notes: {
+      sites: {
         Row: {
-          content: string
+          ai_model: string
+          ai_provider: string
           created_at: string
+          currency: string
           id: string
-          research_id: string
+          industry: string
+          last_crawled_at: string | null
+          name: string
+          pages_crawled: number
+          status: string
           updated_at: string
+          url: string
           user_id: string
+          welcome_message: string | null
         }
         Insert: {
-          content?: string
+          ai_model?: string
+          ai_provider?: string
           created_at?: string
+          currency?: string
           id?: string
-          research_id: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          content?: string
-          created_at?: string
-          id?: string
-          research_id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "research_notes_research_id_fkey"
-            columns: ["research_id"]
-            isOneToOne: false
-            referencedRelation: "research_history"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      research_tags: {
-        Row: {
-          research_id: string
-          tag_id: string
-        }
-        Insert: {
-          research_id: string
-          tag_id: string
-        }
-        Update: {
-          research_id?: string
-          tag_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "research_tags_research_id_fkey"
-            columns: ["research_id"]
-            isOneToOne: false
-            referencedRelation: "research_history"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "research_tags_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "tags"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tags: {
-        Row: {
-          color: string
-          created_at: string
-          id: string
+          industry?: string
+          last_crawled_at?: string | null
           name: string
+          pages_crawled?: number
+          status?: string
+          updated_at?: string
+          url: string
           user_id: string
-        }
-        Insert: {
-          color?: string
-          created_at?: string
-          id?: string
-          name: string
-          user_id: string
+          welcome_message?: string | null
         }
         Update: {
-          color?: string
+          ai_model?: string
+          ai_provider?: string
           created_at?: string
+          currency?: string
           id?: string
+          industry?: string
+          last_crawled_at?: string | null
           name?: string
+          pages_crawled?: number
+          status?: string
+          updated_at?: string
+          url?: string
           user_id?: string
+          welcome_message?: string | null
         }
         Relationships: []
       }
@@ -286,7 +366,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      search_knowledge: {
+        Args: { p_limit?: number; p_query: string; p_site_id: string }
+        Returns: {
+          category: string
+          content: string
+          id: string
+          rank: number
+          source_url: string
+          title: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
